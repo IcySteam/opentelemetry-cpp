@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "opentelemetry/nostd/function_ref.h"
+#include "opentelemetry/sdk/metrics/export/metric_filter.h"
 #include "opentelemetry/sdk/metrics/export/metric_producer.h"
 #include "opentelemetry/sdk/metrics/instruments.h"
 #include "opentelemetry/sdk/metrics/metric_reader.h"
