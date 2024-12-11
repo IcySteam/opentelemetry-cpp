@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <functional>
+
 #include "opentelemetry/nostd/string_view.h"
 #include "opentelemetry/sdk/instrumentationscope/instrumentation_scope.h"
 #include "opentelemetry/sdk/metrics/data/metric_data.h"
@@ -45,18 +47,34 @@ public:
     kDrop,
   };
 
-  MetricFilter()          = default;
-  virtual ~MetricFilter() = default;
+  using TestMetricFn = std::function<MetricFilterResult(
+      const opentelemetry::sdk::instrumentationscope::InstrumentationScope &scope,
+      opentelemetry::nostd::string_view name,
+      const InstrumentType &type,
+      opentelemetry::nostd::string_view unit)>;
+
+  using TestAttributesFn = std::function<AttributesFilterResult(
+      const opentelemetry::sdk::instrumentationscope::InstrumentationScope &scope,
+      opentelemetry::nostd::string_view name,
+      const InstrumentType &type,
+      opentelemetry::nostd::string_view unit,
+      const PointAttributes &attributes)>;
+
+  MetricFilter(TestMetricFn test_metric_fn, TestAttributesFn test_attributes_fn)
+      : test_metric_fn_(test_metric_fn), test_attributes_fn_(test_attributes_fn) {};
 
   /**
    * TestMetric is called once for every metric stream, in each MetricProducer
    * Produce operation.
    */
-  virtual MetricFilterResult TestMetric(
+  MetricFilterResult TestMetric(
       const opentelemetry::sdk::instrumentationscope::InstrumentationScope &scope,
       opentelemetry::nostd::string_view name,
       const InstrumentType &type,
-      opentelemetry::nostd::string_view unit) noexcept = 0;
+      opentelemetry::nostd::string_view unit)
+  {
+    return test_metric_fn_(scope, name, type, unit);
+  }
 
   /**
    * TestAttributes determines for a given metric stream and attribute set if
@@ -65,12 +83,19 @@ public:
    * This operation should only be called if TestMetric operation returned
    * kAcceptPartial for the given metric stream arguments.
    */
-  virtual AttributesFilterResult TestAttributes(
+  AttributesFilterResult TestAttributes(
       const opentelemetry::sdk::instrumentationscope::InstrumentationScope &scope,
       opentelemetry::nostd::string_view name,
       const InstrumentType &type,
       opentelemetry::nostd::string_view unit,
-      const PointAttributes &attributes) noexcept = 0;
+      const PointAttributes &attributes)
+  {
+    return test_attributes_fn_(scope, name, type, unit, attributes);
+  }
+
+private:
+  TestMetricFn test_metric_fn_;
+  TestAttributesFn test_attributes_fn_;
 };
 
 }  // namespace metrics
